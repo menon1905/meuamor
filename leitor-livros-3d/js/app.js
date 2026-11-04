@@ -561,7 +561,7 @@ class App {
         }
 
         const contentLength = response.headers.get('content-length');
-        const total = contentLength ? parseInt(contentLength, 10) : 0;
+        const total = (contentLength && parseInt(contentLength, 10) > 0) ? parseInt(contentLength, 10) : 2304144;
 
         if (!response.body) {
             const blob = await response.blob();
@@ -579,8 +579,8 @@ class App {
             chunks.push(value);
             receivedLength += value.length;
             if (onProgress) {
-                const percent = total > 0 ? Math.min(Math.round((receivedLength / total) * 100), 99) : 0;
-                onProgress(percent, receivedLength, total);
+                const percent = Math.min(Math.round((receivedLength / total) * 100), 99);
+                onProgress(Math.max(8, percent), receivedLength, total);
             }
         }
 
@@ -620,10 +620,11 @@ class App {
             const a = document.createElement('a');
             a.href = downloadUrl;
             a.download = filename;
+            a.target = '_blank';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
+            setTimeout(() => URL.revokeObjectURL(downloadUrl), 8000);
 
             setTimeout(() => {
                 this.showDownloadProgress(false);
@@ -645,7 +646,19 @@ class App {
         const filename = `${bookTitle.replace(/[\/\\:*?"<>|]/g, '_')} - Livro 3D Interativo.html`;
 
         try {
-            this.showDownloadProgress(true, 'Baixar Livro 3D Interativo', 'Gerando arquivo portátil com efeito 3D...', 'Conectando ao servidor...', 5);
+            this.showDownloadProgress(true, 'Baixar Livro 3D Interativo', 'Gerando arquivo portátil com efeito 3D...', 'Conectando ao servidor...', 10);
+
+            // Fetch library code for 100% offline self-contained portability
+            let pdfCode = '';
+            let flipCode = '';
+            try {
+                const [rPdf, rFlip] = await Promise.all([
+                    fetch('js/libs/pdf.min.js').then(r => r.ok ? r.text() : ''),
+                    fetch('js/libs/page-flip.browser.js').then(r => r.ok ? r.text() : '')
+                ]);
+                pdfCode = rPdf || '';
+                flipCode = rFlip || '';
+            } catch (_) {}
 
             let blob = window.bookReader.currentBookPdfBlob;
             if (!blob && this.currentBook && this.currentBook.fileUrl) {
@@ -653,8 +666,7 @@ class App {
                     const mbRec = (received / (1024 * 1024)).toFixed(1);
                     const mbTot = total ? (total / (1024 * 1024)).toFixed(1) : null;
                     const status = mbTot ? `Baixando dados: ${mbRec} MB de ${mbTot} MB` : `Baixando: ${mbRec} MB...`;
-                    // Scale download to 0% - 65% of overall process
-                    const scaled = Math.round(pct * 0.65);
+                    const scaled = Math.min(65, Math.max(15, Math.round(pct * 0.65)));
                     this.showDownloadProgress(true, null, null, status, scaled);
                 });
                 window.bookReader.currentBookPdfBlob = blob;
@@ -675,7 +687,7 @@ class App {
 
             this.showDownloadProgress(true, null, null, 'Empacotando aplicativo 3D autônomo...', 88);
 
-            const offlineHtml = this.generateStandaloneHTML(bookTitle, bookAuthor, base64Data);
+            const offlineHtml = this.generateStandaloneHTML(bookTitle, bookAuthor, base64Data, pdfCode, flipCode);
             const htmlBlob = new Blob([offlineHtml], { type: 'text/html;charset=utf-8' });
 
             this.showDownloadProgress(true, null, null, 'Arquivo pronto! Salvando...', 100);
@@ -684,10 +696,11 @@ class App {
             const a = document.createElement('a');
             a.href = downloadUrl;
             a.download = filename;
+            a.target = '_blank';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
+            setTimeout(() => URL.revokeObjectURL(downloadUrl), 8000);
 
             setTimeout(() => {
                 this.showDownloadProgress(false);
@@ -700,10 +713,11 @@ class App {
         }
     }
 
-    generateStandaloneHTML(title, author, base64Pdf) {
+    generateStandaloneHTML(title, author, base64Pdf, pdfCode = '', flipCode = '') {
         const esc = (s) => s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;') : '';
         const t = esc(title);
         const dl = esc(title);
+        const cleanB64 = base64Pdf || '';
 
         return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -714,8 +728,8 @@ class App {
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>${t} — Leitor 3D</title>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>
-    <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"><\/script>
+    ${pdfCode ? `<script>${pdfCode}<\/script>` : `<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>`}
+    ${flipCode ? `<script>${flipCode}<\/script>` : `<script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"><\/script>`}
     <style>
         :root{--bg:#0b0d11;--accent:#d4af37;--text:#f0f3f8;--muted:#8b9bb4;--border:rgba(255,255,255,0.08);--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);--safe-left:env(safe-area-inset-left,0px);--safe-right:env(safe-area-inset-right,0px);}
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -741,7 +755,7 @@ class App {
         
         .lbar-box{width:min(280px,85vw);display:flex;flex-direction:column;gap:8px;}
         .lbar-track{width:100%;height:8px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,0.12);}
-        .lbar-fill{height:100%;width:0%;background:linear-gradient(90deg,#d4af37,#fceda6);border-radius:999px;transition:width .25s ease;}
+        .lbar-fill{height:100%;width:15%;background:linear-gradient(90deg,#d4af37,#fceda6);border-radius:999px;transition:width .25s ease;}
         .lbar-meta{display:flex;justify-content:space-between;align-items:center;font-size:0.76rem;color:var(--muted);}
         #lpct{color:var(--accent);font-weight:700;font-family:monospace;}
         
@@ -776,11 +790,11 @@ class App {
         <div class="spinner" id="lspin"></div>
         <div class="lbar-box">
             <div class="lbar-track">
-                <div class="lbar-fill" id="lbar"></div>
+                <div class="lbar-fill" id="lbar" style="width: 15%;"></div>
             </div>
             <div class="lbar-meta">
                 <span id="lmsg">Carregando livro 3D...</span>
-                <span id="lpct">0%</span>
+                <span id="lpct">15%</span>
             </div>
         </div>
         <div class="lerr-box" id="lerr">
@@ -789,9 +803,12 @@ class App {
         </div>
     </div>
 
+    <script type="text/plain" id="pdf-raw-data">${cleanB64}<\/script>
+
     <script>
     (function(){
-        const B64="${base64Pdf}";
+        const rawEl = document.getElementById('pdf-raw-data');
+        let B64 = rawEl ? rawEl.textContent.trim() : '';
         let pdf=null,flip=null,tot=0,cur=1;
         const done=new Set();
         const hasTouch=('ontouchstart' in window||navigator.maxTouchPoints>0);
@@ -841,7 +858,65 @@ class App {
 
         async function init(){
             try {
-                setProg(15, 'Inicializando leitor...');
+                setProg(20, 'Inicializando leitor...');
+
+                // Ensure libraries are present
+                for (let i = 0; i < 25 && (typeof pdfjsLib === 'undefined' || typeof St === 'undefined'); i++) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+
+                if (typeof pdfjsLib === 'undefined') {
+                    throw new Error('A biblioteca PDF não pôde ser executada neste leitor.');
+                }
+
+                // CRUCIAL: Clear external workerSrc to avoid CORS/null-origin SecurityError in mobile webviews & file://
+                try {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+                } catch (_) {}
+
+                setProg(40, 'Decodificando dados...');
+                let raw = B64;
+                const commaIdx = raw.indexOf(',');
+                if (commaIdx !== -1) raw = raw.slice(commaIdx + 1);
+
+                const bin = atob(raw);
+                const len = bin.length;
+                const u8 = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    u8[i] = bin.charCodeAt(i);
+                }
+
+                setProg(65, 'Carregando páginas do livro...');
+                pdf = await pdfjsLib.getDocument({
+                    data: u8,
+                    isEvalSupported: false,
+                    useSystemFonts: true
+                }).promise;
+                tot = pdf.numPages;
+
+                setProg(80, 'Construindo livro 3D...');
+                buildDOM();
+
+                setProg(90, 'Configurando efeito 3D...');
+                await setupFlip();
+                bindCtrl();
+                bindTouch();
+                info();
+
+                setProg(96, 'Renderizando páginas iniciais...');
+                renderWin();
+
+                setProg(100, 'Pronto!');
+                setTimeout(() => {
+                    const ldr = document.getElementById('ldr');
+                    if (ldr) ldr.remove();
+                }, 250);
+
+            } catch (err) {
+                console.error('Erro na inicialização do livro 3D:', err);
+                showError(err.message || 'Não foi possível carregar a visualização 3D nesta tela.');
+            }
+        }
 
                 // Ensure libraries are present
                 for (let i = 0; i < 25 && (typeof pdfjsLib === 'undefined' || typeof St === 'undefined'); i++) {

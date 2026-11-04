@@ -1416,6 +1416,39 @@ body.zen-active .reader-toolbar {
     color: var(--text-secondary);
 }
 
+.loader-progress-box {
+    width: min(240px, 80vw);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.loader-progress-track {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.loader-progress-fill {
+    height: 100%;
+    width: 5%;
+    background: linear-gradient(90deg, #d4af37, #fceda6);
+    border-radius: 999px;
+    transition: width 0.25s ease;
+}
+
+.loader-progress-pct {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--accent-gold);
+    font-family: monospace;
+}
+
 .toast-container {
     position: fixed;
     bottom: calc(var(--toolbar-height) + var(--safe-bottom) + 12px);

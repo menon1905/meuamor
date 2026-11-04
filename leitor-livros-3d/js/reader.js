@@ -49,7 +49,7 @@ class PDFBookReader {
      * Load a PDF document from a URL or ArrayBuffer/Blob
      */
     async loadPDF(source, bookMeta = {}) {
-        this.showLoading(true, 'Carregando livro...');
+        this.showLoading(true, 'Conectando ao livro...', 5);
         this.currentBookId = bookMeta.id || 'custom-book-' + Date.now();
         this.currentBookTitle = bookMeta.title || 'Livro em PDF';
 
@@ -59,18 +59,56 @@ class PDFBookReader {
 
             let loadingTask;
             if (typeof source === 'string') {
-                loadingTask = window.pdfjsLib.getDocument(source);
-                // Also fetch blob for original download if it's a URL
-                fetch(source)
-                    .then(res => res.blob())
-                    .then(blob => { this.currentBookPdfBlob = blob; })
-                    .catch(err => console.warn('Could not cache PDF blob:', err));
+                this.showLoading(true, 'Carregando livro...', 10);
+                
+                // Fetch the PDF with real percentage progress
+                const response = await fetch(source);
+                if (!response.ok) {
+                    throw new Error(`Falha ao baixar PDF (${response.status} ${response.statusText})`);
+                }
+                const contentLength = response.headers.get('content-length');
+                const totalBytes = contentLength ? parseInt(contentLength, 10) : 2304144;
+
+                let buffer;
+                if (!response.body) {
+                    const blob = await response.blob();
+                    this.currentBookPdfBlob = blob;
+                    buffer = await blob.arrayBuffer();
+                    this.showLoading(true, 'Preparando páginas...', 80);
+                } else {
+                    const reader = response.body.getReader();
+                    let receivedLength = 0;
+                    const chunks = [];
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                        receivedLength += value.length;
+                        const pct = Math.min(85, Math.max(10, Math.round((receivedLength / totalBytes) * 85)));
+                        const mb = (receivedLength / (1024 * 1024)).toFixed(1);
+                        this.showLoading(true, `Carregando: ${mb} MB...`, pct);
+                    }
+
+                    const blob = new Blob(chunks, { type: 'application/pdf' });
+                    this.currentBookPdfBlob = blob;
+                    buffer = await blob.arrayBuffer();
+                }
+
+                this.showLoading(true, 'Processando páginas 3D...', 90);
+                loadingTask = window.pdfjsLib.getDocument({
+                    data: buffer,
+                    isEvalSupported: false,
+                    useSystemFonts: true
+                });
             } else if (source instanceof Blob || source instanceof File) {
                 this.currentBookPdfBlob = source;
                 const buffer = await source.arrayBuffer();
+                this.showLoading(true, 'Processando livro...', 70);
                 loadingTask = window.pdfjsLib.getDocument({ data: buffer });
             } else if (source instanceof ArrayBuffer || source instanceof Uint8Array) {
                 this.currentBookPdfBlob = new Blob([source], { type: 'application/pdf' });
+                this.showLoading(true, 'Processando livro...', 70);
                 loadingTask = window.pdfjsLib.getDocument({ data: source });
             }
 
@@ -78,6 +116,7 @@ class PDFBookReader {
             this.totalPages = this.pdfDoc.numPages;
 
             // Load outline / bookmarks
+            this.showLoading(true, 'Montando sumário...', 95);
             await this.loadBookmarks();
 
             // Retrieve saved page from localStorage
@@ -85,6 +124,7 @@ class PDFBookReader {
             const initialPage = (savedPage && savedPage <= this.totalPages) ? savedPage : 1;
 
             // Build DOM pages
+            this.showLoading(true, 'Abrindo livro 3D...', 98);
             await this.buildBookDOM();
 
             // Initialize PageFlip
@@ -107,7 +147,7 @@ class PDFBookReader {
             console.error('Erro ao carregar PDF:', error);
             this.showLoading(false);
             if (window.app) {
-                window.app.showNotification('Erro ao abrir o PDF. Verifique se o arquivo é válido.', 'error');
+                window.app.showNotification('Erro ao abrir o PDF: ' + (error.message || 'Verifique sua conexão.'), 'error');
             }
             throw error;
         }
@@ -690,12 +730,26 @@ class PDFBookReader {
         } catch (e) {}
     }
 
-    showLoading(show, message = 'Carregando...') {
+    showLoading(show, message = 'Carregando...', pct = null) {
         const loader = document.getElementById('global-loader');
         const loaderMsg = document.getElementById('loader-message');
+        const fill = document.getElementById('loader-progress-fill');
+        const pctEl = document.getElementById('loader-progress-pct');
+        const box = document.getElementById('loader-progress-box');
+
         if (loader) {
             loader.classList.toggle('active', show);
             if (loaderMsg && message) loaderMsg.textContent = message;
+            if (box) {
+                box.style.display = (pct !== null) ? 'flex' : 'none';
+            }
+            if (pct !== null) {
+                const clamped = Math.min(100, Math.max(0, Math.round(pct)));
+                if (fill) fill.style.width = `${clamped}%`;
+                if (pctEl) pctEl.textContent = `${clamped}%`;
+                const readingPct = document.getElementById('reading-progress-pct');
+                if (readingPct) readingPct.textContent = `${clamped}%`;
+            }
         }
     }
 

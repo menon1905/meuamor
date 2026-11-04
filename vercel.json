@@ -1,8 +1,14 @@
 {
-  "cleanUrls": true,
+  "cleanUrls": false,
+  "rewrites": [
+    { "source": "/", "destination": "/leitor-livros-3d/index.html" },
+    { "source": "/books/(.*)", "destination": "/leitor-livros-3d/books/$1" },
+    { "source": "/css/(.*)", "destination": "/leitor-livros-3d/css/$1" },
+    { "source": "/js/(.*)", "destination": "/leitor-livros-3d/js/$1" }
+  ],
   "redirects": [
     {
-      "source": "/",
+      "source": "/leitor-livros-3d",
       "destination": "/leitor-livros-3d/",
       "permanent": false
     }
