@@ -1,0 +1,6 @@
+server.js
+database.json
+leitor-livros-3d/server.js
+leitor-livros-3d/test-*.js
+leitor-livros-3d/extract-meta.js
+*.bat

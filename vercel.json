@@ -1,0 +1,10 @@
+{
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/leitor-livros-3d/",
+      "permanent": false
+    }
+  ]
+}

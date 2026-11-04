@@ -269,15 +269,19 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log('======================================================');
-  console.log('  💳 QUANTO EU DEVO? — SERVIDOR & BANCO DE DADOS ATIVO');
-  console.log('======================================================');
-  console.log(`\n💻 No seu Computador:`);
-  console.log(`   http://localhost:${PORT}`);
-  console.log(`\n📱 No Celular da sua Mãe (Mesmo Wi-Fi):`);
-  console.log(`   http://${LOCAL_IP}:${PORT}`);
-  console.log(`\n💾 Banco de Dados Salvo em:`);
-  console.log(`   ${DB_FILE}`);
-  console.log('======================================================\n');
-});
+if (require.main === module) {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log('======================================================');
+    console.log('  💳 QUANTO EU DEVO? — SERVIDOR & BANCO DE DADOS ATIVO');
+    console.log('======================================================');
+    console.log(`\n💻 No seu Computador:`);
+    console.log(`   http://localhost:${PORT}`);
+    console.log(`\n📱 No Celular da sua Mãe (Mesmo Wi-Fi):`);
+    console.log(`   http://${LOCAL_IP}:${PORT}`);
+    console.log(`\n💾 Banco de Dados Salvo em:`);
+    console.log(`   ${DB_FILE}`);
+    console.log('======================================================\n');
+  });
+}
+
+module.exports = server;

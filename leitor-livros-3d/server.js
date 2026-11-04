@@ -84,9 +84,13 @@ const server = http.createServer((req, res) => {
     });
 });
 
-server.listen(PORT, () => {
-    console.log(`====================================================`);
-    console.log(`📖 Leitor de Livros 3D - Servidor Ativo!`);
-    console.log(`🚀 Acesse no seu navegador: http://localhost:${PORT}`);
-    console.log(`====================================================`);
-});
+if (require.main === module) {
+    server.listen(PORT, () => {
+        console.log(`====================================================`);
+        console.log(`📖 Leitor de Livros 3D - Servidor Ativo!`);
+        console.log(`🚀 Acesse no seu navegador: http://localhost:${PORT}`);
+        console.log(`====================================================`);
+    });
+}
+
+module.exports = server;
