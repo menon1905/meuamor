@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quanto Eu Devo? — Gestor de Acertos & Gastos</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Background Glow Accents -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl"></div>
+    <div class="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl"></div>
+    <div class="absolute -bottom-40 left-1/3 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl"></div>
+  </div>
+
+  <div class="relative z-10 flex-1 flex flex-col">
+    <!-- Navbar -->
+    <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-xl sticky top-0 z-30">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 h-18 py-3.5 flex items-center justify-between">
+        
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+            <i data-lucide="wallet-cards" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-lg font-bold text-white tracking-tight">Quanto Eu Devo?</h1>
+              <span id="targetPersonBadge" class="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">
+                Minha Mãe
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Controle financeiro aberto • Sem senha • 100% transparente</p>
+          </div>
+        </div>
+
+        <!-- Sync Status Badge -->
+        <div id="syncStatusBadge" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="syncStatusText">Banco Conectado</span>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="flex items-center gap-2">
+          <button 
+            id="btnConnectPhone" 
+            onclick="openConnectModal()" 
+            title="Conectar Celular da Mãe (Abrir no celular)" 
+            class="p-2 sm:px-3 sm:py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 hover:text-white transition-all flex items-center gap-1.5 text-sm font-semibold cursor-pointer">
+            <i data-lucide="smartphone" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Conectar Celular</span>
+          </button>
+
+          <button 
+            id="btnSettings" 
+            onclick="openSettingsModal()" 
+            title="Configurações (Quem pagar, dia do acerto)" 
+            class="p-2 sm:px-3 sm:py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 text-slate-300 hover:text-white transition-all flex items-center gap-2 text-sm cursor-pointer">
+            <i data-lucide="settings" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Ajustes</span>
+          </button>
+          
+          <button 
+            id="btnShareWhatsapp" 
+            onclick="openWhatsAppModal()" 
+            title="Gerar Extrato para WhatsApp" 
+            class="p-2 sm:px-3 sm:py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 transition-all flex items-center gap-2 text-sm font-medium cursor-pointer">
+            <i data-lucide="message-circle" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Extrato WhatsApp</span>
+          </button>
+
+          <button 
+            id="btnOpenNewModal" 
+            onclick="openAddExpenseModal()" 
+            class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 transition-all flex items-center gap-2 active:scale-95 cursor-pointer">
+            <i data-lucide="plus" class="w-4 h-4 stroke-[2.5]"></i>
+            <span>Novo Gasto</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 py-8 w-full flex-1 space-y-7">
+      
+      <!-- Top Alert / Payday Countdown Banner -->
+      <section id="paydayBanner" class="glass-panel rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-indigo-500/20 bg-gradient-to-r from-indigo-950/40 via-slate-900/40 to-slate-900/40">
+        <div class="flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+            <i data-lucide="calendar-clock" class="w-5 h-5 text-indigo-400"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-semibold uppercase tracking-wider text-indigo-400">Previsão de Acerto</span>
+              <span id="countdownDaysBadge" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
+                Faltam 12 dias
+              </span>
+            </div>
+            <p class="text-sm font-medium text-slate-200 mt-0.5" id="paydaySummaryText">
+              Você recebe <strong class="text-white">dia 01</strong> para acertar as contas com <strong class="text-indigo-300" id="bannerPersonName">sua mãe</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 self-end sm:self-center">
+          <button 
+            id="btnSettleAll" 
+            onclick="settleAllPending()" 
+            class="px-3.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 hover:text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
+            Quitar Pendências
+          </button>
+        </div>
+      </section>
+
+      <!-- KPI Metrics Cards -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1: Total Pendente (O mais importante) -->
+        <div class="glass-card rounded-2xl p-5 border border-rose-500/20 bg-gradient-to-b from-rose-950/20 to-slate-900/60 relative overflow-hidden group hover:border-rose-500/40 transition-all">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-rose-300">Total a Pagar (Pendente)</span>
+            <div class="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-400">
+              <i data-lucide="alert-circle" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight" id="statPendingTotal">
+            R$ 0,00
+          </div>
+          <div class="mt-2 flex items-center gap-2 text-xs text-rose-300/80">
+            <span id="statPendingCount" class="font-semibold">0 itens</span>
+            <span>aguardando acerto</span>
+          </div>
+          <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-rose-500/5 rounded-full blur-xl pointer-events-none"></div>
+        </div>
+
+        <!-- Card 2: Já Pago / Reembolsado -->
+        <div class="glass-card rounded-2xl p-5 border border-emerald-500/20 bg-gradient-to-b from-emerald-950/20 to-slate-900/60 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Já Reembolsado</span>
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+              <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight" id="statPaidTotal">
+            R$ 0,00
+          </div>
+          <div class="mt-2 flex items-center gap-2 text-xs text-emerald-300/80">
+            <span id="statPaidCount" class="font-semibold">0 itens</span>
+            <span>já liquidados</span>
+          </div>
+          <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/5 rounded-full blur-xl pointer-events-none"></div>
+        </div>
+
+        <!-- Card 3: Total Geral Acumulado -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-700/60 bg-gradient-to-b from-slate-800/20 to-slate-900/60 relative overflow-hidden group hover:border-slate-600 transition-all">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">Total Geral de Gastos</span>
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+              <i data-lucide="layers" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight" id="statAllTotal">
+            R$ 0,00
+          </div>
+          <div class="mt-2 flex items-center gap-2 text-xs text-slate-400">
+            <span id="statAllCount" class="font-semibold text-slate-300">0 lançamentos</span>
+            <span>registrados</span>
+          </div>
+        </div>
+
+        <!-- Card 4: Ticket Médio / Destaque -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-700/60 bg-gradient-to-b from-slate-800/20 to-slate-900/60 relative overflow-hidden group hover:border-slate-600 transition-all">
+          <div class="flex items-center justify-between text-slate-400 mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-300">Média por Gasto</span>
+            <div class="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
+              <i data-lucide="trending-up" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight" id="statAverage">
+            R$ 0,00
+          </div>
+          <div class="mt-2 flex items-center gap-2 text-xs text-slate-400">
+            <span>Média de gastos registrados</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- QUICK ADD BAR (Adição Rápida Estilo To-Do para Você ou Sua Mãe) -->
+      <section class="glass-card rounded-2xl p-4 sm:p-5 border border-indigo-500/30 bg-slate-900/90 shadow-xl">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400">
+              <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+            </div>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-200">Adicionar Gasto Rapidamente</span>
+            <span class="text-[11px] text-slate-400 hidden md:inline">— você ou sua mãe podem adicionar direto aqui sem login</span>
+          </div>
+
+          <!-- Selector: Quem pagou? -->
+          <div class="flex items-center bg-slate-950/80 p-0.5 rounded-xl border border-slate-800">
+            <button 
+              type="button" 
+              id="quickPayerToggleMae" 
+              onclick="setQuickPayer('Minha Mãe')" 
+              class="px-3 py-1 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm transition-all cursor-pointer">
+              👩 Mãe pagou
+            </button>
+            <button 
+              type="button" 
+              id="quickPayerToggleEu" 
+              onclick="setQuickPayer('Pedi Dinheiro')" 
+              class="px-3 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-all cursor-pointer">
+              🙋‍♂️ Eu pedi
+            </button>
+          </div>
+        </div>
+
+        <form id="quickAddForm" onsubmit="handleQuickAdd(event)" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <!-- Title input -->
+          <div class="relative flex-1">
+            <input 
+              type="text" 
+              id="quickTitle" 
+              placeholder="O que foi pago? Ex: Pizza, Farmácia, Uber, Supermercado..." 
+              required 
+              class="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none"
+            />
+          </div>
+
+          <!-- Value input -->
+          <div class="relative w-full sm:w-36">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">R$</span>
+            <input 
+              type="text" 
+              id="quickAmount" 
+              placeholder="0,00" 
+              required 
+              class="w-full pl-10 pr-3.5 py-2.5 rounded-xl glass-input text-xs sm:text-sm font-bold text-white placeholder-slate-500 focus:outline-none"
+            />
+          </div>
+
+          <!-- Category selector -->
+          <select id="quickCategory" class="glass-input rounded-xl px-3 py-2.5 text-xs text-slate-300 focus:outline-none cursor-pointer shrink-0">
+            <option value="alimentacao" class="bg-slate-900">🍽️ Comida</option>
+            <option value="saude" class="bg-slate-900">💊 Farmácia</option>
+            <option value="transporte" class="bg-slate-900">🚗 Uber/Transp.</option>
+            <option value="mercado" class="bg-slate-900">🛒 Supermercado</option>
+            <option value="compras" class="bg-slate-900">🛍️ Compras</option>
+            <option value="contas" class="bg-slate-900">⚡ Contas</option>
+            <option value="outros" class="bg-slate-900">📦 Outros</option>
+          </select>
+
+          <!-- Submit button -->
+          <button 
+            type="submit" 
+            class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 shrink-0 active:scale-95 cursor-pointer">
+            <i data-lucide="plus" class="w-4 h-4 stroke-[2.5]"></i>
+            <span>Adicionar</span>
+          </button>
+        </form>
+      </section>
+
+      <!-- Main Section: Expenses To-Do List & Toolbar -->
+      <section class="glass-panel rounded-2xl p-5 sm:p-6 border border-slate-800 space-y-5">
+        
+        <!-- Controls & Filters Header -->
+        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+          
+          <!-- Status Tabs (To-Do style) -->
+          <div class="flex items-center gap-1.5 p-1 bg-slate-900/90 rounded-xl border border-slate-800 self-start">
+            <button onclick="setFilter('pending')" data-filter="pending" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-indigo-600 text-white shadow-sm flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+              Pendentes (<span id="tabPendingCount">0</span>)
+            </button>
+            <button onclick="setFilter('all')" data-filter="all" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="list" class="w-3.5 h-3.5"></i>
+              Todos (<span id="tabAllCount">0</span>)
+            </button>
+            <button onclick="setFilter('paid')" data-filter="paid" class="filter-tab px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="check" class="w-3.5 h-3.5"></i>
+              Pagos (<span id="tabPaidCount">0</span>)
+            </button>
+          </div>
+
+          <!-- Search, Category & Sorting -->
+          <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Search bar -->
+            <div class="relative flex-1 sm:w-56">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              <input 
+                type="text" 
+                id="searchInput" 
+                oninput="renderExpenses()" 
+                placeholder="Buscar gasto..." 
+                class="w-full pl-9 pr-3 py-1.5 rounded-xl glass-input text-xs text-slate-200 placeholder-slate-500 focus:outline-none transition-all"
+              />
+            </div>
+
+            <!-- Category filter -->
+            <select id="categoryFilter" onchange="renderExpenses()" class="glass-input rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none cursor-pointer">
+              <option value="all" class="bg-slate-900 text-slate-200">Todas Categorias</option>
+              <option value="alimentacao" class="bg-slate-900 text-slate-200">🍽️ Alimentação</option>
+              <option value="saude" class="bg-slate-900 text-slate-200">💊 Farmácia / Saúde</option>
+              <option value="transporte" class="bg-slate-900 text-slate-200">🚗 Transporte / Uber</option>
+              <option value="mercado" class="bg-slate-900 text-slate-200">🛒 Supermercado</option>
+              <option value="compras" class="bg-slate-900 text-slate-200">🛍️ Compras / Roupas</option>
+              <option value="contas" class="bg-slate-900 text-slate-200">⚡ Contas & Boletos</option>
+              <option value="outros" class="bg-slate-900 text-slate-200">📦 Outros</option>
+            </select>
+
+            <!-- Sort By -->
+            <select id="sortFilter" onchange="renderExpenses()" class="glass-input rounded-xl px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none cursor-pointer">
+              <option value="date-desc" class="bg-slate-900 text-slate-200">Mais recentes primeiro</option>
+              <option value="date-asc" class="bg-slate-900 text-slate-200">Mais antigos primeiro</option>
+              <option value="amount-desc" class="bg-slate-900 text-slate-200">Maior valor</option>
+              <option value="amount-asc" class="bg-slate-900 text-slate-200">Menor valor</option>
+            </select>
+          </div>
+
+        </div>
+
+        <!-- Expense Items Container -->
+        <div id="expenseList" class="space-y-3">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden py-14 text-center flex flex-col items-center justify-center">
+          <div class="w-16 h-16 rounded-2xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center text-slate-400 mb-4">
+            <i data-lucide="receipt" class="w-8 h-8 stroke-1"></i>
+          </div>
+          <h3 class="text-base font-semibold text-slate-200">Nenhum gasto encontrado</h3>
+          <p class="text-xs text-slate-400 max-w-sm mt-1">
+            Não há contas correspondentes ao filtro atual. Adicione novos gastos que sua mãe pagou para você acertar depois.
+          </p>
+          <button onclick="openAddExpenseModal()" class="mt-4 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-all cursor-pointer">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            Adicionar Primeiro Gasto
+          </button>
+        </div>
+
+      </section>
+
+      <!-- Transparency & Credibility Footer Note -->
+      <section class="rounded-xl border border-slate-800 bg-slate-900/40 p-4 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+          <span>Seus registros ficam salvos automaticamente no seu navegador. Sem contas, sem senhas.</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button onclick="exportBackupJson()" class="hover:text-indigo-400 underline underline-offset-2 cursor-pointer">Fazer Backup</button>
+          <span>•</span>
+          <label class="hover:text-indigo-400 underline underline-offset-2 cursor-pointer">
+            Restaurar Backup
+            <input type="file" id="importJsonInput" onchange="importBackupJson(event)" accept=".json" class="hidden" />
+          </label>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
+      Quanto Eu Devo? — Gestão transparente de despesas familiares
+    </footer>
+  </div>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Modal: Add / Edit Expense -->
+  <div id="expenseModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+    <div class="glass-panel w-full max-w-lg rounded-2xl border border-slate-700/80 p-6 shadow-2xl animate-fade-in relative">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div id="modalIconBox" class="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 id="modalTitle" class="text-base font-bold text-white">Adicionar Novo Gasto</h3>
+            <p class="text-xs text-slate-400">Registre o que foi pago para acertar no fim do mês</p>
+          </div>
+        </div>
+        <button onclick="closeExpenseModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="expenseForm" onsubmit="handleExpenseFormSubmit(event)" class="mt-5 space-y-4">
+        <input type="hidden" id="expenseId" value="" />
+
+        <!-- Descrição -->
+        <div>
+          <label for="inputTitle" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            Descrição do Gasto <span class="text-rose-400">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="inputTitle" 
+            required 
+            placeholder="Ex: Farmácia, Almoço, Uber para o trabalho..." 
+            class="w-full px-3.5 py-2.5 rounded-xl glass-input text-sm text-white placeholder-slate-500 focus:outline-none"
+          />
+        </div>
+
+        <!-- Valor (R$) e Data -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label for="inputValue" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+              Valor (R$) <span class="text-rose-400">*</span>
+            </label>
+            <div class="relative">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">R$</span>
+              <input 
+                type="text" 
+                id="inputValue" 
+                required 
+                placeholder="0,00" 
+                class="w-full pl-10 pr-3.5 py-2.5 rounded-xl glass-input text-sm font-semibold text-white placeholder-slate-500 focus:outline-none"
+              />
+            </div>
+            <!-- Quick value buttons -->
+            <div class="flex items-center gap-1.5 mt-1.5">
+              <button type="button" onclick="addValueToModal(10)" class="px-2 py-0.5 rounded-md bg-slate-800 text-[11px] text-slate-400 hover:text-white border border-slate-700/60 cursor-pointer">+R$ 10</button>
+              <button type="button" onclick="addValueToModal(25)" class="px-2 py-0.5 rounded-md bg-slate-800 text-[11px] text-slate-400 hover:text-white border border-slate-700/60 cursor-pointer">+R$ 25</button>
+              <button type="button" onclick="addValueToModal(50)" class="px-2 py-0.5 rounded-md bg-slate-800 text-[11px] text-slate-400 hover:text-white border border-slate-700/60 cursor-pointer">+R$ 50</button>
+              <button type="button" onclick="addValueToModal(100)" class="px-2 py-0.5 rounded-md bg-slate-800 text-[11px] text-slate-400 hover:text-white border border-slate-700/60 cursor-pointer">+R$ 100</button>
+            </div>
+          </div>
+
+          <div>
+            <label for="inputDate" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+              Data da Compra <span class="text-rose-400">*</span>
+            </label>
+            <input 
+              type="date" 
+              id="inputDate" 
+              required 
+              class="w-full px-3.5 py-2.5 rounded-xl glass-input text-sm text-white placeholder-slate-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <!-- Categoria e Quem Pagou -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label for="inputCategory" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+              Categoria
+            </label>
+            <select id="inputCategory" class="w-full px-3.5 py-2.5 rounded-xl glass-input text-sm text-white focus:outline-none cursor-pointer">
+              <option value="alimentacao" class="bg-slate-900">🍽️ Alimentação</option>
+              <option value="saude" class="bg-slate-900">💊 Farmácia / Saúde</option>
+              <option value="transporte" class="bg-slate-900">🚗 Transporte / Uber</option>
+              <option value="mercado" class="bg-slate-900">🛒 Supermercado</option>
+              <option value="compras" class="bg-slate-900">🛍️ Compras / Roupas</option>
+              <option value="contas" class="bg-slate-900">⚡ Contas & Boletos</option>
+              <option value="outros" class="bg-slate-900">📦 Outros</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="inputPayer" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+              Quem Pagou / Origem
+            </label>
+            <input 
+              type="text" 
+              id="inputPayer" 
+              value="Minha Mãe" 
+              placeholder="Ex: Minha Mãe, Pedi Dinheiro..." 
+              class="w-full px-3.5 py-2.5 rounded-xl glass-input text-sm text-white placeholder-slate-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <!-- Observações Opcionais -->
+        <div>
+          <label for="inputNotes" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            Observações / Detalhes (Opcional)
+          </label>
+          <input 
+            type="text" 
+            id="inputNotes" 
+            placeholder="Ex: Pagou no cartão dela, dividir em 2x..." 
+            class="w-full px-3.5 py-2.5 rounded-xl glass-input text-sm text-white placeholder-slate-500 focus:outline-none"
+          />
+        </div>
+
+        <!-- Status inicial (Pendente ou Já Pago) -->
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="inputIsPaid" class="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 focus:ring-0 cursor-pointer" />
+          <label for="inputIsPaid" class="text-xs text-slate-300 cursor-pointer">
+            Marcar este item como <strong class="text-emerald-400">já pago / quitado</strong>
+          </label>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button 
+            type="button" 
+            onclick="closeExpenseModal()" 
+            class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all cursor-pointer">
+            Cancelar
+          </button>
+          <button 
+            type="submit" 
+            class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-xs font-bold shadow-lg shadow-indigo-500/25 transition-all flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            Salvar Gasto
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Settings (Credor e Data de Pagamento) -->
+  <div id="settingsModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+    <div class="glass-panel w-full max-w-md rounded-2xl border border-slate-700/80 p-6 shadow-2xl animate-fade-in relative">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <i data-lucide="sliders" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Configurações de Acerto</h3>
+            <p class="text-xs text-slate-400">Personalize para quem você deve e seu dia de pagamento</p>
+          </div>
+        </div>
+        <button onclick="closeSettingsModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="settingsForm" onsubmit="handleSettingsSubmit(event)" class="mt-5 space-y-4">
+        <div>
+          <label for="settingsPersonName" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            Para quem você deve? (Nome / Parentesco)
+          </label>
+          <input 
+            type="text" 
+            id="settingsPersonName" 
+            value="Minha Mãe" 
+            required 
+            class="w-full px-3.5 py-2.5 rounded-xl glass-input text-sm text-white focus:outline-none"
+            placeholder="Ex: Minha Mãe, Pai, Irmão..."
+          />
+        </div>
+
+        <div>
+          <label for="settingsPayday" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            Dia do seu recebimento / acerto (1 a 31)
+          </label>
+          <div class="flex items-center gap-3">
+            <input 
+              type="number" 
+              id="settingsPayday" 
+              min="1" 
+              max="31" 
+              value="1" 
+              required 
+              class="w-24 px-3.5 py-2.5 rounded-xl glass-input text-sm text-white text-center font-bold focus:outline-none"
+            />
+            <span class="text-xs text-slate-400">Dia do mês em que você quita a dívida (ex: 01)</span>
+          </div>
+        </div>
+
+        <!-- Supabase Cloud Connection -->
+        <div class="pt-2 border-t border-slate-800">
+          <label for="settingsSupabaseUrl" class="block text-xs font-semibold uppercase tracking-wider text-emerald-400 mb-1">
+            ⚡ URL do Projeto Supabase (Nuvem 24h)
+          </label>
+          <input 
+            type="text" 
+            id="settingsSupabaseUrl" 
+            placeholder="Ex: https://abcdefgh.supabase.co" 
+            class="w-full px-3.5 py-2 rounded-xl glass-input text-xs text-white placeholder-slate-500 font-mono focus:outline-none"
+          />
+          <p class="text-[11px] text-slate-400 mt-1">
+            Fica no seu dashboard do Supabase em Project Settings &gt; API &gt; Project URL.
+          </p>
+        </div>
+
+        <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
+          <button 
+            type="button" 
+            onclick="resetDemoData()" 
+            class="text-xs text-slate-400 hover:text-amber-400 transition-all underline underline-offset-2 cursor-pointer">
+            Carregar dados de exemplo
+          </button>
+          
+          <button 
+            type="submit" 
+            class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all cursor-pointer">
+            Salvar Ajustes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: WhatsApp Extrato Preview -->
+  <div id="whatsappModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+    <div class="glass-panel w-full max-w-lg rounded-2xl border border-emerald-500/30 p-6 shadow-2xl animate-fade-in relative">
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <i data-lucide="message-square" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Extrato Transparente para WhatsApp</h3>
+            <p class="text-xs text-slate-400">Envie a prestação de contas com total credibilidade</p>
+          </div>
+        </div>
+        <button onclick="closeWhatsAppModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="mt-4">
+        <label class="block text-xs font-medium text-slate-300 mb-2">Mensagem gerada automaticamente:</label>
+        <textarea 
+          id="whatsappMessagePreview" 
+          rows="10" 
+          readonly 
+          class="w-full p-3.5 rounded-xl bg-slate-900 border border-slate-700/80 text-xs font-mono text-emerald-200/90 focus:outline-none resize-none leading-relaxed"
+        ></textarea>
+      </div>
+
+      <div class="mt-4 flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-800">
+        <div id="copyToast" class="text-xs text-emerald-400 font-semibold opacity-0 transition-opacity flex items-center gap-1">
+          <i data-lucide="check" class="w-3.5 h-3.5"></i>
+          Copiado para a área de transferência!
+        </div>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button 
+            type="button" 
+            onclick="copyWhatsAppText()" 
+            class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            Copiar Texto
+          </button>
+          
+          <button 
+            type="button" 
+            onclick="sendWhatsAppDirect()" 
+            class="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20 cursor-pointer">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+            Abrir WhatsApp
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmation (Delete / Settle All) -->
+  <div id="confirmModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+    <div class="glass-panel w-full max-w-sm rounded-2xl border border-slate-700 p-6 shadow-2xl animate-fade-in text-center">
+      <div id="confirmIconBox" class="w-12 h-12 rounded-full mx-auto flex items-center justify-center mb-4 bg-rose-500/10 text-rose-400 border border-rose-500/20">
+        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+      </div>
+      <h3 id="confirmTitle" class="text-base font-bold text-white mb-1.5">Tem certeza?</h3>
+      <p id="confirmMessage" class="text-xs text-slate-400 mb-6">Esta ação não poderá ser desfeita.</p>
+      
+      <div class="flex items-center justify-center gap-3">
+        <button onclick="closeConfirmModal(false)" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all cursor-pointer">
+          Cancelar
+        </button>
+        <button onclick="closeConfirmModal(true)" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all cursor-pointer">
+          Confirmar
+        </button>
+  <!-- Modal: Conectar Celular da Mãe -->
+  <div id="connectModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm hidden">
+    <div class="glass-panel w-full max-w-md rounded-2xl border border-indigo-500/30 p-6 shadow-2xl animate-fade-in relative text-center">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2 text-left">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <i data-lucide="smartphone" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Conectar Celular da Mãe</h3>
+            <p class="text-[11px] text-slate-400">Sem senha • O que ela colocar cai aqui na hora</p>
+          </div>
+        </div>
+        <button onclick="closeConnectModal()" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="mt-4 space-y-4">
+        <!-- QR Code -->
+        <div class="bg-white p-3 rounded-2xl w-48 h-48 mx-auto flex items-center justify-center shadow-xl border border-slate-200">
+          <img id="connectQrCode" src="" alt="QR Code" class="w-full h-full object-contain" />
+        </div>
+
+        <p class="text-xs text-slate-300">
+          Aponte a <strong>câmera do celular dela</strong> para o QR Code acima, ou copie o link abaixo:
+        </p>
+
+        <!-- Link copy input -->
+        <div class="flex items-center gap-2">
+          <input 
+            type="text" 
+            id="connectPhoneUrl" 
+            readonly 
+            value="http://192.168.0.229:3000" 
+            class="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700/80 text-xs text-indigo-300 font-mono text-center focus:outline-none select-all"
+          />
+          <button 
+            type="button" 
+            onclick="copyConnectPhoneUrl()" 
+            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1 cursor-pointer">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            Copiar
+          </button>
+        </div>
+
+        <!-- WhatsApp Send Button -->
+        <button 
+          type="button" 
+          onclick="sendConnectLinkWhatsApp()" 
+          class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
+          <i data-lucide="send" class="w-4 h-4"></i>
+          <span>Mandar Link para a Mãe no WhatsApp</span>
+        </button>
+
+        <div class="rounded-xl bg-slate-900/60 p-3 text-[11px] text-slate-400 text-left space-y-1 border border-slate-800">
+          <p>💡 <strong>Em casa:</strong> Basta ela estar no mesmo Wi-Fi de casa e abrir o link.</p>
+          <p>🌍 <strong>Fora de casa (4G):</strong> Dê um duplo clique no arquivo <em>"Conectar Celular Fora de Casa (4G).bat"</em> na sua pasta.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- JavaScript logic -->
+  <script src="app.js"></script>
+</body>
+</html>

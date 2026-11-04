@@ -1,0 +1,30 @@
+{
+  "settings": {
+    "personName": "Minha Mãe",
+    "payday": 1
+  },
+  "expenses": [
+    {
+      "id": "exp_1792426740945",
+      "title": "pagou minha lente",
+      "amount": 600,
+      "date": "2026-10-19",
+      "category": "outros",
+      "payer": "Minha Mãe",
+      "notes": "",
+      "isPaid": true,
+      "createdAt": "2026-10-19T16:19:00.945Z"
+    },
+    {
+      "id": "exp_4",
+      "title": "Itens de higiene no Supermercado",
+      "amount": 39.8,
+      "date": "2026-10-12",
+      "category": "mercado",
+      "payer": "Minha Mãe",
+      "notes": "Shampoo e desodorante inclusos nas compras dela",
+      "isPaid": true,
+      "createdAt": "2026-10-12T16:08:06.356Z"
+    }
+  ]
+}

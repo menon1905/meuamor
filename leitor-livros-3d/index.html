@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0c10">
+    <title>Leitor de Livros 3D — iPad & Mobile First</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Core Libraries -->
+    <script src="js/libs/pdf.min.js"></script>
+    <script src="js/libs/page-flip.browser.js"></script>
+</head>
+<body class="theme-obsidian">
+    <!-- Main App Container -->
+    <div id="app" class="app-container">
+
+        <!-- Top Navigation Header (iPad & Mobile First) -->
+        <header class="app-header" id="app-header">
+            <div class="header-left">
+                <button class="nav-btn touch-target" id="btn-library" title="Biblioteca" aria-label="Abrir Biblioteca">
+                    <span class="icon">📚</span>
+                    <span class="label-desktop">Biblioteca</span>
+                </button>
+                <button class="nav-btn touch-target" id="btn-toc" title="Sumário" aria-label="Sumário / Capítulos">
+                    <span class="icon">📑</span>
+                    <span class="label-desktop">Sumário</span>
+                </button>
+            </div>
+
+            <div class="header-center">
+                <div class="book-meta-display">
+                    <h1 class="book-title-header" id="current-book-title">Não é como nos Filmes</h1>
+                    <span class="book-author-header" id="current-book-author">Lynn Painter</span>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <!-- Prominent Fullscreen Button -->
+                <button class="nav-btn btn-fs-header touch-target" id="btn-header-fullscreen" title="Tela Cheia (F)" aria-label="Alternar Tela Cheia">
+                    <span class="icon-fs">⛶</span>
+                    <span class="label-desktop" id="header-fs-label">Tela Cheia</span>
+                </button>
+
+                <!-- Quick Settings / Action Sheet Trigger -->
+                <button class="nav-btn btn-settings-trigger touch-target" id="btn-open-settings" title="Ajustes e Opções" aria-label="Abrir Ajustes">
+                    <span class="icon">⚙️</span>
+                    <span class="label-desktop">Opções</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Reading Stage -->
+        <main class="reading-stage" id="reading-stage">
+            
+            <!-- Minimalist Fullscreen Exit Button (Only visible in fullscreen) -->
+            <button class="fullscreen-exit-btn touch-target" id="btn-exit-fs" title="Sair da Tela Cheia">✕</button>
+
+            <!-- Floating Clean Exit Fullscreen Pill (Appears in Zen mode) -->
+            <button class="floating-fs-pill touch-target" id="btn-floating-fs" title="Sair do Modo Foco">
+                <span>🗗 Sair do Foco</span>
+            </button>
+
+            <!-- Side Navigation Click Zones (Subtle on tablet, hidden on small mobile) -->
+            <div class="stage-nav-edge nav-edge-left" id="edge-prev" title="Página Anterior">
+                <div class="edge-arrow-btn">‹</div>
+            </div>
+
+            <!-- 3D Book Viewport -->
+            <div class="book-viewport" id="book-viewport">
+                <div class="book-stage" id="book-stage">
+                    <div id="book-container">
+                        <!-- StPageFlip mounts here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="stage-nav-edge nav-edge-right" id="edge-next" title="Próxima Página">
+                <div class="edge-arrow-btn">›</div>
+            </div>
+
+        </main>
+
+        <!-- Bottom Thumb-Friendly Toolbar (iPad & Mobile First Dock) -->
+        <footer class="reader-toolbar" id="reader-toolbar">
+            <div class="toolbar-nav-group">
+                <button class="tool-btn touch-target" id="btn-first" title="Primeira Página">⏮</button>
+                <button class="tool-btn btn-step touch-target" id="btn-prev" title="Página Anterior">◀</button>
+            </div>
+
+            <!-- Page Timeline Slider & Counter -->
+            <div class="toolbar-center-group">
+                <div class="page-counter-badge" id="page-counter-trigger" title="Toque para digitar a página">
+                    <span class="counter-curr" id="counter-curr-label">1</span>
+                    <span class="counter-sep">/</span>
+                    <span class="counter-total" id="total-pages-label">480</span>
+                </div>
+                <div class="slider-wrapper">
+                    <input type="range" id="page-slider" class="page-slider" min="1" max="480" value="1" title="Deslize para folhear">
+                </div>
+                <span class="progress-pct" id="reading-progress-pct">0%</span>
+            </div>
+
+            <div class="toolbar-nav-group">
+                <button class="tool-btn btn-step touch-target" id="btn-next" title="Próxima Página">▶</button>
+                <button class="tool-btn touch-target" id="btn-last" title="Última Página">⏭</button>
+            </div>
+
+            <!-- Secondary Tools (Zoom & Zen Mode) -->
+            <div class="toolbar-extra-tools">
+                <button class="tool-btn touch-target" id="btn-zoom-out" title="Diminuir Zoom">−</button>
+                <span class="zoom-level" id="zoom-level-label">100%</span>
+                <button class="tool-btn touch-target" id="btn-zoom-in" title="Aumentar Zoom">+</button>
+                <button class="tool-btn touch-target" id="btn-zen-mode" title="Modo Foco / Zen (Ocultar Barras)">👁️</button>
+                <button class="tool-btn touch-target" id="btn-fullscreen" title="Tela Cheia">⛶</button>
+            </div>
+        </footer>
+
+        <!-- Slide-over Table of Contents Drawer -->
+        <aside class="toc-drawer" id="toc-drawer">
+            <div class="drawer-header">
+                <h3>Sumário da Obra</h3>
+                <button class="drawer-close touch-target" id="btn-close-toc">✕</button>
+            </div>
+            <div class="drawer-body">
+                <ul class="toc-list" id="toc-list">
+                    <!-- Populated dynamically -->
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Mobile & iPad Quick Settings Action Sheet -->
+        <div class="sheet-overlay" id="settings-sheet-overlay">
+            <div class="sheet-modal" id="settings-sheet">
+                <div class="sheet-grab-bar"></div>
+                
+                <div class="sheet-header">
+                    <h3>Ajustes de Leitura</h3>
+                    <button class="sheet-close touch-target" id="btn-close-settings">✕</button>
+                </div>
+
+                <div class="sheet-content">
+                    
+                    <!-- Reading Experience Mode (Tablet Clean vs Physical 3D) -->
+                    <div class="sheet-section">
+                        <label class="sheet-label">Modo de Animação das Páginas</label>
+                        <div class="segmented-control">
+                            <button class="segment-btn active" id="segment-tablet-mode">
+                                <span class="seg-icon">📱</span>
+                                <span class="seg-text">Tablet Clean (Rápido)</span>
+                            </button>
+                            <button class="segment-btn" id="segment-3d-mode">
+                                <span class="seg-icon">📖</span>
+                                <span class="seg-text">3D Físico (Cantos)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Page Spread Mode -->
+                    <div class="sheet-section">
+                        <label class="sheet-label">Visualização das Páginas</label>
+                        <div class="segmented-control" id="spread-segmented-control">
+                            <button class="segment-btn active" data-spread="auto">
+                                <span class="seg-text">Auto (iPad/Cel)</span>
+                            </button>
+                            <button class="segment-btn" data-spread="single">
+                                <span class="seg-text">Pág. Única</span>
+                            </button>
+                            <button class="segment-btn" data-spread="double">
+                                <span class="seg-text">Pág. Dupla</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Theme Selector -->
+                    <div class="sheet-section">
+                        <label class="sheet-label">Ambiente e Tema</label>
+                        <div class="theme-cards-grid">
+                            <button class="theme-card card-obsidian active" data-set-theme="theme-obsidian">
+                                <span class="theme-swatch"></span>
+                                <span class="theme-name">Obsidiana</span>
+                            </button>
+                            <button class="theme-card card-midnight" data-set-theme="theme-midnight">
+                                <span class="theme-swatch"></span>
+                                <span class="theme-name">Noite Profunda</span>
+                            </button>
+                            <button class="theme-card card-sepia" data-set-theme="theme-sepia">
+                                <span class="theme-swatch"></span>
+                                <span class="theme-name">Sépia Nobre</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sound Toggle -->
+                    <div class="sheet-section sheet-row">
+                        <div class="sheet-row-text">
+                            <strong>Som de Virar Folha</strong>
+                            <span>Efeito suave de folhear sintetizado</span>
+                        </div>
+                        <button class="switch-btn active" id="btn-sheet-sound" aria-label="Ativar som">
+                            <span class="switch-knob"></span>
+                        </button>
+                    </div>
+
+                    <!-- Download Options -->
+                    <div class="sheet-section">
+                        <label class="sheet-label">Downloads Disponíveis</label>
+                        <div class="sheet-action-list">
+                            <button class="action-list-item" id="download-3d-offline">
+                                <div class="item-icon-box">✨</div>
+                                <div class="item-info">
+                                    <strong>Baixar Livro 3D Interativo (.html)</strong>
+                                    <span>Arquivo portátil com efeito 3D preservado, funciona offline no iPad e celular.</span>
+                                </div>
+                            </button>
+                            <button class="action-list-item" id="download-original-pdf">
+                                <div class="item-icon-box">📄</div>
+                                <div class="item-info">
+                                    <strong>Baixar PDF Original (.pdf)</strong>
+                                    <span>Documento vetorial completo com rolagem contínua para Acrobat, Apple Books e Kindle.</span>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Upload PDF -->
+                    <div class="sheet-section">
+                        <label class="sheet-label">Adicionar Outro Livro</label>
+                        <label class="upload-sheet-btn" for="file-upload-input">
+                            <span class="icon">📁</span>
+                            <span>Carregar Arquivo PDF</span>
+                            <input type="file" id="file-upload-input" accept="application/pdf" style="display:none;">
+                        </label>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Library Modal -->
+        <div class="modal-overlay" id="library-modal">
+            <div class="modal-dialog">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <h2>Sua Biblioteca</h2>
+                        <p class="modal-subtitle">Selecione uma obra ou carregue seu próprio arquivo PDF.</p>
+                    </div>
+                    <button class="modal-close-btn touch-target" id="btn-close-library">✕</button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="upload-banner" onclick="document.getElementById('file-upload-input').click();">
+                        <div class="upload-icon">📥</div>
+                        <div class="upload-text">
+                            <strong>Adicionar novo PDF para leitura 3D</strong>
+                            <span>Toque aqui ou arraste qualquer arquivo PDF</span>
+                        </div>
+                    </div>
+
+                    <div class="library-grid" id="library-grid">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Direct Page Jump Modal for Mobile / iPad -->
+        <div class="modal-overlay" id="page-jump-modal">
+            <div class="modal-dialog modal-dialog-sm">
+                <div class="modal-header">
+                    <h3>Ir para a Página</h3>
+                    <button class="modal-close-btn touch-target" id="btn-close-jump">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="jump-input-group">
+                        <input type="number" id="page-jump-input" class="jump-number-input" min="1" max="480" placeholder="1">
+                        <button class="btn-jump-submit touch-target" id="btn-submit-jump">Ir ➔</button>
+                    </div>
+                    <div class="quick-jump-chips">
+                        <button class="chip touch-target" data-jump="1">Capa (1)</button>
+                        <button class="chip touch-target" data-jump="50">Pág 50</button>
+                        <button class="chip touch-target" data-jump="100">Pág 100</button>
+                        <button class="chip touch-target" data-jump="200">Pág 200</button>
+                        <button class="chip touch-target" data-jump="350">Pág 350</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Download Progress Modal -->
+        <div class="modal-overlay" id="download-progress-modal">
+            <div class="modal-dialog download-modal-box">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <h2 id="dl-modal-title">Baixando Livro 3D Interativo</h2>
+                        <p class="modal-subtitle" id="dl-modal-subtitle">Transferindo dados do servidor...</p>
+                    </div>
+                </div>
+                <div class="modal-body download-modal-content">
+                    <div class="dl-progress-wrapper">
+                        <div class="dl-progress-bar-track">
+                            <div class="dl-progress-bar-fill" id="dl-progress-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="dl-progress-meta">
+                            <span class="dl-progress-status" id="dl-progress-status">Iniciando download...</span>
+                            <span class="dl-progress-pct" id="dl-progress-pct">0%</span>
+                        </div>
+                    </div>
+                    <div class="dl-progress-hint" id="dl-progress-hint">
+                        Por favor, aguarde enquanto os dados do livro são preparados e transferidos.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Loading Overlay -->
+        <div class="global-loader" id="global-loader">
+            <div class="loader-book-animation">
+                <div class="book-page-anim page-1"></div>
+                <div class="book-page-anim page-2"></div>
+                <div class="book-page-anim page-3"></div>
+            </div>
+            <div class="loader-text" id="loader-message">Preparando páginas em alta fidelidade...</div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toast-container"></div>
+
+    </div>
+
+    <!-- Application Scripts -->
+    <script src="js/sound.js"></script>
+    <script src="js/reader.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
