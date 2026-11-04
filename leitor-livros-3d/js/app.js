@@ -918,64 +918,6 @@ class App {
             }
         }
 
-                // Ensure libraries are present
-                for (let i = 0; i < 25 && (typeof pdfjsLib === 'undefined' || typeof St === 'undefined'); i++) {
-                    await new Promise(r => setTimeout(r, 100));
-                }
-
-                if (typeof pdfjsLib === 'undefined') {
-                    throw new Error('A biblioteca PDF não pôde ser executada neste leitor.');
-                }
-
-                // CRUCIAL: Clear external workerSrc to avoid CORS/null-origin SecurityError in mobile webviews & file://
-                try {
-                    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
-                } catch (_) {}
-
-                setProg(35, 'Decodificando dados...');
-                let raw = B64;
-                const commaIdx = raw.indexOf(',');
-                if (commaIdx !== -1) raw = raw.slice(commaIdx + 1);
-
-                const bin = atob(raw);
-                const len = bin.length;
-                const u8 = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    u8[i] = bin.charCodeAt(i);
-                }
-
-                setProg(55, 'Carregando páginas do livro...');
-                pdf = await pdfjsLib.getDocument({
-                    data: u8,
-                    isEvalSupported: false,
-                    useSystemFonts: true
-                }).promise;
-                tot = pdf.numPages;
-
-                setProg(75, 'Construindo livro 3D...');
-                buildDOM();
-
-                setProg(85, 'Configurando efeito 3D...');
-                await setupFlip();
-                bindCtrl();
-                bindTouch();
-                info();
-
-                setProg(95, 'Renderizando páginas iniciais...');
-                renderWin();
-
-                setProg(100, 'Pronto!');
-                setTimeout(() => {
-                    const ldr = document.getElementById('ldr');
-                    if (ldr) ldr.remove();
-                }, 250);
-
-            } catch (err) {
-                console.error('Erro na inicialização do livro 3D:', err);
-                showError(err.message || 'Não foi possível carregar a visualização 3D nesta tela.');
-            }
-        }
-
         function buildDOM(){
             const w=document.getElementById('bw');
             w.innerHTML='';
